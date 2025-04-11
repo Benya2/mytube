@@ -1,43 +1,61 @@
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+// 🔥 Импортируем Firebase
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
+import { getDatabase, push, ref as dbRef, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-const app = express();
-const port = 3000;
+// ⚙️ Твои настройки Firebase (вставь свои!)
+const firebaseConfig = {
+  apiKey: "AIzaSyBfr1wQcfF3aePju_cw3a6BqAhO5mPO6_I",
+  authDomain: "my-7711d.firebaseapp.com",
+  databaseURL: "https://my-7711d-default-rtdb.firebaseio.com",
+  projectId: "my-7711d",
+  storageBucket: "my-7711d.firebasestorage.app",
+  messagingSenderId: "927734587826",
+  appId: "1:927734587826:web:d5f47e7db523ac6a2ec4ab",
+  measurementId: "G-PW7EEDMDLK"
+};
 
-// Папка для хранения видео
-const uploadFolder = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadFolder)) fs.mkdirSync(uploadFolder);
+const app = initializeApp(firebaseConfig);
+const storage = getStorage(app);
+const db = getDatabase(app);
 
-// Настройка загрузки видео через multer
-const storage = multer.diskStorage({
-  destination: uploadFolder,
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
-});
-const upload = multer({ storage });
+window.uploadVideo = () => {
+  const file = document.getElementById('fileInput').files[0];
+  if (!file) return alert("Выберите видео!");
 
-// Раздача статических файлов
-app.use(express.static('public'));
-app.use('/videos', express.static('uploads'));
+  const storageRef = ref(storage, 'videos/' + Date.now() + '-' + file.name);
+  const uploadTask = uploadBytesResumable(storageRef, file);
 
-// ⬇️ Вот этот маршрут добавь после upload и до listen
+  uploadTask.on('state_changed',
+    null,
+    error => alert("Ошибка: " + error),
+    () => {
+      getDownloadURL(uploadTask.snapshot.ref).then(url => {
+        // Сохраняем ссылку в базу
+        push(dbRef(db, 'videos'), { url });
+        alert("Видео загружено!");
+      });
+    }
+  );
+};
 
-// Получение списка всех видео
-app.get('/list', (req, res) => {
-  fs.readdir(uploadFolder, (err, files) => {
-    if (err) return res.status(500).send('Ошибка');
-    const videos = files.map(file => `/videos/${file}`);
-    res.json(videos);
+const container = document.getElementById('videos');
+
+// Загружаем список видео
+onValue(dbRef(db, 'videos'), snapshot => {
+  container.innerHTML = '';
+  const data = snapshot.val();
+  if (!data) {
+    container.innerText = 'Пока нет видео.';
+    return;
+  }
+
+  Object.values(data).reverse().forEach(video => {
+    const el = document.createElement('video');
+    el.src = video.url;
+    el.controls = true;
+    el.style.maxWidth = '100%';
+    el.style.marginBottom = '10px';
+    container.appendChild(el);
   });
-});
-
-// Обработка загрузки видео
-app.post('/upload', upload.single('video'), (req, res) => {
-  res.redirect('/');
-});
-
-// Запуск сервера
-app.listen(port, () => {
-  console.log(`Сервер запущен: http://localhost:${port}`);
 });
