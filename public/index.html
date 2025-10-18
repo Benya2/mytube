@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>🎬 Мой YouTube</title>
+  <title>🎬 Мой YouTube (Firebase)</title>
   <style>
     body {
       font-family: sans-serif;
@@ -20,6 +20,20 @@
       padding: 10px 20px;
       font-size: 16px;
     }
+    #progress-container {
+      margin-top: 10px;
+      width: 100%;
+      background: #eee;
+      height: 20px;
+      border-radius: 10px;
+      overflow: hidden;
+      display: none;
+    }
+    #progress-bar {
+      height: 100%;
+      background: #4caf50;
+      width: 0%;
+    }
   </style>
 </head>
 <body>
@@ -27,6 +41,11 @@
 
   <input type="file" id="fileInput" accept="video/*">
   <button onclick="uploadVideo()">📤 Загрузить видео</button>
+
+  <div id="progress-container">
+    <div id="progress-bar"></div>
+  </div>
+  <p id="progress-text"></p>
 
   <hr>
   <h2>🌐 Все загруженные видео:</h2>
