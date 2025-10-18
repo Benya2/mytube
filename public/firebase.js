@@ -30,6 +30,11 @@ const app = initializeApp(firebaseConfig);
 const storage = getStorage(app);
 const db = getDatabase(app);
 
+// Элементы интерфейса
+const progressContainer = document.getElementById("progress-container");
+const progressBar = document.getElementById("progress-bar");
+const progressText = document.getElementById("progress-text");
+
 // 🟢 Функция загрузки видео
 window.uploadVideo = () => {
   const file = document.getElementById("fileInput").files[0];
@@ -40,45 +45,59 @@ window.uploadVideo = () => {
 
   const uploadTask = uploadBytesResumable(storageRef, file);
 
+  progressContainer.style.display = "block";
+
   uploadTask.on(
     "state_changed",
     snapshot => {
       const progress =
         (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-      console.log("Загрузка: " + progress.toFixed(0) + "%");
+      progressBar.style.width = progress + "%";
+      progressText.innerText = `Загрузка: ${progress.toFixed(0)}%`;
     },
     error => {
       alert("Ошибка загрузки: " + error.message);
+      progressContainer.style.display = "none";
     },
     () => {
-      // ✅ Когда загрузка завершена — получаем ссылку и сохраняем в базу
       getDownloadURL(uploadTask.snapshot.ref).then(url => {
         push(dbRef(db, "videos"), { url, name: fileName, time: Date.now() });
-        alert("Видео успешно загружено!");
+        alert("✅ Видео успешно загружено!");
+        progressContainer.style.display = "none";
+        progressBar.style.width = "0%";
+        progressText.innerText = "";
+
+        // обновляем список
+        loadVideos();
       });
     }
   );
 };
 
-// 🟡 Отображаем список видео
+// 🟡 Функция отображения видео
 const container = document.getElementById("videos");
 
-onValue(dbRef(db, "videos"), snapshot => {
-  container.innerHTML = "";
-  const data = snapshot.val();
-  if (!data) {
-    container.innerText = "Пока нет видео.";
-    return;
-  }
+function loadVideos() {
+  onValue(dbRef(db, "videos"), snapshot => {
+    container.innerHTML = "";
+    const data = snapshot.val();
+    if (!data) {
+      container.innerText = "Пока нет видео.";
+      return;
+    }
 
-  Object.values(data)
-    .reverse()
-    .forEach(video => {
-      const el = document.createElement("video");
-      el.src = video.url;
-      el.controls = true;
-      el.style.maxWidth = "100%";
-      el.style.marginBottom = "10px";
-      container.appendChild(el);
-    });
-});
+    Object.values(data)
+      .reverse()
+      .forEach(video => {
+        const el = document.createElement("video");
+        el.src = video.url;
+        el.controls = true;
+        el.style.maxWidth = "100%";
+        el.style.marginBottom = "10px";
+        container.appendChild(el);
+      });
+  });
+}
+
+// загружаем при старте
+loadVideos();
